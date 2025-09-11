@@ -1,0 +1,2086 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Maps & Local Places Customizer</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      body {
+        background: linear-gradient(135deg, #f5f7fa 0%, #e4edf9 100%);
+        color: #333;
+        min-height: 100vh;
+        padding: 15px;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      header {
+        text-align: center;
+        padding: 10px 0;
+        background: linear-gradient(90deg, #1a2a6c, #4a7bd9);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+      }
+
+      h1 {
+        font-size: 2.2rem;
+        color: white;
+        margin-bottom: 5px;
+      }
+
+      .subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-top: 5px;
+      }
+
+      .controls {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        background: white;
+        padding: 12px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      }
+
+      .search-container {
+        width: 100%;
+        display: flex;
+      }
+
+      #location-input {
+        flex: 1;
+        padding: 10px 16px;
+        border: 2px solid #e0e6ed;
+        border-radius: 8px 0 0 8px;
+        font-size: 0.95rem;
+        outline: none;
+        transition: all 0.3s;
+      }
+
+      #location-input:focus {
+        border-color: #4a7bd9;
+      }
+
+      #search-btn {
+        background: #4a7bd9;
+        color: white;
+        border: none;
+        border-radius: 0 8px 8px 0;
+        padding: 0 16px;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+
+      #search-btn:hover {
+        background: #1a2a6c;
+      }
+
+      .categories {
+        width: 100%;
+      }
+
+      .category-buttons {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 2px 0;
+        scrollbar-width: thin;
+        scrollbar-color: #d1e0ff #f8f9fa;
+      }
+
+      .category-buttons::-webkit-scrollbar {
+        height: 6px;
+      }
+
+      .category-buttons::-webkit-scrollbar-track {
+        background: #f8f9fa;
+        border-radius: 3px;
+      }
+
+      .category-buttons::-webkit-scrollbar-thumb {
+        background: #d1e0ff;
+        border-radius: 3px;
+      }
+
+      .category-buttons::-webkit-scrollbar-thumb:hover {
+        background: #4a7bd9;
+      }
+
+      .category-btn {
+        background: #eef7ff;
+        border: 1px solid #d1e0ff;
+        color: #1a2a6c;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        white-space: nowrap;
+        flex-shrink: 0;
+        min-width: fit-content;
+      }
+
+      .category-btn:hover,
+      .category-btn.active {
+        background: #4a7bd9;
+        color: white;
+      }
+
+      .content {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        height: calc(100vh - 200px);
+      }
+
+      .map-container {
+        flex: 1;
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        position: relative;
+        min-height: 300px;
+      }
+
+      #map {
+        height: 100%;
+      }
+
+      .cards-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .cards-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 15px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+      }
+
+      .location-name {
+        font-weight: 600;
+        color: #1a2a6c;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .results-count {
+        font-weight: 500;
+        color: #4a7bd9;
+        font-size: 0.95rem;
+        position: relative;
+      }
+
+      /* Loading/Search Status Overlay */
+      .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(26, 42, 108, 0.9);
+        color: white;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .loading-content {
+        text-align: center;
+        background: white;
+        padding: 40px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        color: #1a2a6c;
+        max-width: 400px;
+        width: 90%;
+      }
+
+      .loading-spinner {
+        width: 60px;
+        height: 60px;
+        border: 4px solid #e1ebff;
+        border-top: 4px solid #4a7bd9;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+
+      .loading-text {
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+
+      .loading-subtitle {
+        font-size: 1rem;
+        color: #666;
+        opacity: 0.8;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Error overlay styling */
+      .loading-content button:hover {
+        background: #1a2a6c !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(74, 123, 217, 0.3);
+      }
+
+      .error-icon {
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
+      .cards-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 15px;
+        height: 100%;
+        overflow-y: auto;
+        padding: 5px;
+      }
+
+      .card {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        min-height: 360px;
+        position: relative;
+        border: 2px solid transparent;
+      }
+
+      .card.selected {
+        border-color: #27ae60;
+        box-shadow: 0 5px 20px rgba(39, 174, 96, 0.2);
+        transform: translateY(-3px);
+      }
+
+      .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+      }
+
+      .card.selected:hover {
+        transform: translateY(-7px);
+        box-shadow: 0 10px 30px rgba(39, 174, 96, 0.3);
+      }
+
+      /* Card overlay for enhanced button prominence */
+      .card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 100%;
+        background: linear-gradient(
+          180deg,
+          rgba(0, 0, 0, 0.7) 0%,
+          rgba(0, 0, 0, 0.3) 40%,
+          transparent 60%
+        );
+        z-index: 5;
+        opacity: 0;
+        transition: all 0.4s ease;
+        pointer-events: none;
+        border-radius: 12px;
+      }
+
+      .card:hover::before {
+        opacity: 1;
+      }
+
+      .card-image {
+        height: 180px;
+        width: 100%;
+        background: linear-gradient(45deg, #f0f5ff, #e1ebff);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .card-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s ease;
+      }
+
+      .card:hover .card-image img {
+        transform: scale(1.05);
+      }
+
+      .card-image .placeholder {
+        color: #4a7bd9;
+        font-size: 3.5rem;
+        opacity: 0.8;
+        transition: all 0.3s ease;
+      }
+
+      .card:hover .card-image .placeholder {
+        transform: scale(1.1);
+        opacity: 1;
+      }
+
+      .card-content {
+        padding: 15px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .card-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 12px;
+      }
+
+      .card-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .card-icon i {
+        font-size: 18px;
+        color: white;
+      }
+
+      .card h3 {
+        color: #1a2a6c;
+        font-size: 1.1rem;
+        flex: 1;
+      }
+
+      .card p {
+        color: #555;
+        margin-bottom: 15px;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        flex: 1;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+      }
+
+      .card-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .tag {
+        background: #4a7bd9;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+      }
+
+      .tag.secondary-tag {
+        background: #f0f5ff;
+        color: #4a7bd9;
+        border: 1px solid #d1e0ff;
+        font-weight: 400;
+      }
+
+      /* Enriched card content styles */
+      .card-detail {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+        font-size: 0.85rem;
+        color: #555;
+        line-height: 1.4;
+      }
+
+      .card-detail i {
+        width: 16px;
+        color: #4a7bd9;
+        font-size: 12px;
+        flex-shrink: 0;
+      }
+
+      .contact-link {
+        color: #4a7bd9;
+        text-decoration: none;
+        transition: color 0.3s ease;
+      }
+
+      .contact-link:hover {
+        color: #1a2a6c;
+        text-decoration: underline;
+      }
+
+      .card-extra-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+
+      .extra-info-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: #f8f9fa;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        color: #666;
+        border: 1px solid #e9ecef;
+      }
+
+      .extra-info-item i {
+        color: #4a7bd9;
+        font-size: 10px;
+      }
+
+      /* Expandable card content system */
+      .card-details-container {
+        position: relative;
+      }
+
+      .card-details-expanded {
+        max-height: none;
+        opacity: 1;
+        transition: all 0.4s ease;
+      }
+
+      .card-details-collapsed {
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        transition: all 0.4s ease;
+      }
+
+      .expand-toggle {
+        background: none;
+        border: none;
+        color: #4a7bd9;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        padding: 8px 0;
+        margin-top: 8px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.3s ease;
+        align-self: flex-start;
+      }
+
+      .expand-toggle:hover {
+        color: #1a2a6c;
+        transform: translateX(2px);
+      }
+
+      .expand-toggle i {
+        font-size: 12px;
+        transition: transform 0.3s ease;
+      }
+
+      .expand-toggle.expanded i {
+        transform: rotate(180deg);
+      }
+
+      .card-essential-info {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      /* Compact info display for collapsed state */
+      .card-compact-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        font-size: 0.8rem;
+        color: #666;
+        margin-bottom: 8px;
+      }
+
+      .compact-info-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .compact-info-item i {
+        color: #4a7bd9;
+        font-size: 10px;
+        width: 12px;
+      }
+
+      .card-info {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+        color: #666;
+        border-top: 1px solid #eee;
+        padding-top: 10px;
+        margin-top: auto;
+      }
+
+      .card-info-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .directions-btn {
+        background: #1a2a6c;
+        color: white;
+        border: none;
+        border-radius: 20px;
+        padding: 8px 15px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 5px;
+        width: fit-content;
+      }
+
+      .directions-btn:hover {
+        background: #4a7bd9;
+        transform: translateY(-2px);
+      }
+
+      /* Host specific controls */
+      .host-controls {
+        display: flex;
+        justify-content: space-between;
+        background: white;
+        padding: 10px 15px;
+        border-radius: 8px;
+        margin-top: 10px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .host-buttons {
+        display: flex;
+        gap: 10px;
+      }
+
+      .host-btn {
+        padding: 8px 15px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .host-btn.primary {
+        background: linear-gradient(135deg, #4a7bd9, #1a2a6c);
+        color: white;
+        box-shadow: 0 4px 12px rgba(74, 123, 217, 0.3);
+        font-weight: 600;
+        font-size: 1rem;
+        padding: 12px 24px;
+        border: none;
+      }
+
+      .host-btn.primary:hover {
+        background: linear-gradient(135deg, #1a2a6c, #4a7bd9);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(74, 123, 217, 0.5);
+      }
+
+      .host-btn.primary:disabled {
+        background: #bbb;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .host-btn.secondary {
+        background: linear-gradient(135deg, #27ae60, #2ecc71);
+        color: white;
+        border: none;
+        box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+        font-weight: 600;
+        font-size: 1rem;
+        padding: 12px 20px;
+      }
+
+      .host-btn.secondary:hover {
+        background: linear-gradient(135deg, #229954, #27ae60);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+      }
+
+      .host-btn.secondary.danger {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+      }
+
+      .host-btn.secondary.danger:hover {
+        background: linear-gradient(135deg, #c0392b, #a93226);
+        box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+      }
+
+      .host-btn.danger {
+        background: #e74c3c;
+        color: white;
+      }
+
+      .host-btn.danger:hover {
+        background: #c0392b;
+      }
+
+      /* Card Header Actions - Prominent Button Design */
+      .card-header-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-bottom: 1px solid #dee2e6;
+        border-radius: 12px 12px 0 0;
+        gap: 12px;
+        position: relative;
+        z-index: 10;
+        transition: all 0.4s ease;
+      }
+
+      /* Dark overlay on hover */
+      .card:hover .card-header-actions {
+        background: linear-gradient(
+          135deg,
+          rgba(0, 0, 0, 0.85) 0%,
+          rgba(0, 0, 0, 0.95) 100%
+        );
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+        transform: scale(1.02);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+      }
+
+      .card.selected:hover .card-header-actions {
+        background: linear-gradient(
+          135deg,
+          rgba(39, 174, 96, 0.9) 0%,
+          rgba(46, 204, 113, 0.95) 100%
+        );
+      }
+
+      .card-select-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: linear-gradient(135deg, #4a7bd9, #1a2a6c);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.4s ease;
+        box-shadow: 0 2px 8px rgba(74, 123, 217, 0.3);
+        min-width: 100px;
+        justify-content: center;
+      }
+
+      .card-select-btn:hover,
+      .card:hover .card-select-btn {
+        background: linear-gradient(135deg, #1a2a6c, #4a7bd9);
+        transform: translateY(-2px) scale(1.05);
+        box-shadow: 0 6px 20px rgba(74, 123, 217, 0.6);
+      }
+
+      .card-select-btn.selected {
+        background: linear-gradient(135deg, #27ae60, #2ecc71);
+        box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+      }
+
+      .card-select-btn.selected:hover,
+      .card:hover .card-select-btn.selected {
+        background: linear-gradient(135deg, #2ecc71, #27ae60);
+        transform: translateY(-2px) scale(1.05);
+        box-shadow: 0 6px 20px rgba(39, 174, 96, 0.6);
+      }
+
+      .card-select-btn i {
+        font-size: 1rem;
+        transition: transform 0.2s ease;
+      }
+
+      .card-select-btn:hover i {
+        transform: scale(1.1);
+      }
+
+      .card-control-buttons {
+        display: flex;
+        gap: 8px;
+      }
+
+      .card-btn {
+        width: 38px;
+        height: 38px;
+        border: none;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: all 0.4s ease;
+        background: #6c757d;
+        color: white;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        position: relative;
+      }
+
+      .card-btn:hover,
+      .card:hover .card-btn {
+        transform: translateY(-3px) scale(1.1);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+      }
+
+      .card-btn.edit-btn {
+        background: linear-gradient(135deg, #3498db, #2980b9);
+      }
+
+      .card-btn.edit-btn:hover,
+      .card:hover .card-btn.edit-btn {
+        background: linear-gradient(135deg, #2980b9, #3498db);
+        box-shadow: 0 6px 20px rgba(52, 152, 219, 0.6);
+      }
+
+      .card-btn.remove-btn {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+      }
+
+      .card-btn.remove-btn:hover,
+      .card:hover .card-btn.remove-btn {
+        background: linear-gradient(135deg, #c0392b, #e74c3c);
+        box-shadow: 0 6px 20px rgba(231, 76, 60, 0.6);
+      }
+
+      /* Card Selection State */
+      .card.selected {
+        border-color: #27ae60;
+        box-shadow: 0 5px 20px rgba(39, 174, 96, 0.2);
+        transform: translateY(-2px);
+      }
+
+      .card.selected .card-header-actions {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        border-bottom-color: #27ae60;
+      }
+
+      /* Button tooltips on hover */
+      .card-btn[title]:hover::after {
+        content: attr(title);
+        position: absolute;
+        top: -40px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 500;
+        white-space: nowrap;
+        z-index: 1001;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        animation: tooltipFadeIn 0.2s ease;
+        pointer-events: none;
+      }
+
+      .card-btn[title]:hover::before {
+        content: "";
+        position: absolute;
+        top: -6px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 0;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-top: 5px solid rgba(0, 0, 0, 0.9);
+        z-index: 1001;
+        animation: tooltipFadeIn 0.2s ease;
+        pointer-events: none;
+      }
+
+      @keyframes tooltipFadeIn {
+        from {
+          opacity: 0;
+          transform: translateX(-50%) translateY(5px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+        }
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 480px) {
+        .card-header-actions {
+          flex-direction: column;
+          gap: 8px;
+          align-items: stretch;
+        }
+
+        .card-select-btn {
+          min-width: auto;
+        }
+
+        .card-control-buttons {
+          justify-content: center;
+        }
+      }
+
+      /* Toggle switch styles */
+      .toggle-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-right: 15px;
+      }
+
+      .toggle-label {
+        font-size: 0.9rem;
+        color: #4a7bd9;
+        font-weight: 500;
+      }
+
+      .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 24px;
+      }
+
+      .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.4s;
+        border-radius: 24px;
+      }
+
+      .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.4s;
+        border-radius: 50%;
+      }
+
+      input:checked + .toggle-slider {
+        background-color: #4a7bd9;
+      }
+
+      input:checked + .toggle-slider:before {
+        transform: translateX(26px);
+      }
+
+      /* Responsive styles */
+      @media (min-width: 768px) {
+        .controls {
+          flex-direction: row;
+        }
+
+        .search-container {
+          min-width: 300px;
+          max-width: 400px;
+        }
+
+        .categories {
+          min-width: 300px;
+        }
+
+        .content {
+          flex-direction: row;
+        }
+
+        .map-container {
+          min-height: auto;
+        }
+
+        h1 {
+          font-size: 2.5rem;
+        }
+      }
+
+      @media (max-width: 768px) {
+        .cards-container {
+          grid-template-columns: 1fr;
+        }
+
+        .cards-header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 5px;
+        }
+
+        .host-controls {
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .host-buttons {
+          width: 100%;
+          justify-content: center;
+        }
+
+        .map-add-controls {
+          bottom: 15px;
+        }
+
+        .map-add-btn {
+          padding: 10px 20px;
+          font-size: 0.9rem;
+          min-width: 140px;
+        }
+
+        .add-instruction-text {
+          padding: 8px 16px;
+          font-size: 0.8rem;
+        }
+      }
+
+      /* Modal Styles */
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .modal-content {
+        background: white;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 500px;
+        max-height: 90vh;
+        overflow-y: auto;
+        padding: 25px;
+        position: relative;
+      }
+
+      .modal-close {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #777;
+      }
+
+      .modal-close:hover {
+        color: #333;
+      }
+
+      .modal-title {
+        margin-bottom: 20px;
+        color: #1a2a6c;
+        text-align: center;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #1a2a6c;
+      }
+
+      .form-group input,
+      .form-group textarea,
+      .form-group select {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.3s;
+      }
+
+      .form-group input:focus,
+      .form-group textarea:focus,
+      .form-group select:focus {
+        border-color: #4a7bd9;
+        box-shadow: 0 0 0 2px rgba(74, 123, 217, 0.2);
+      }
+
+      .form-group textarea {
+        min-height: 100px;
+        resize: vertical;
+      }
+
+      .image-preview-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .image-preview {
+        width: 100%;
+        max-height: 200px;
+        object-fit: cover;
+        border-radius: 8px;
+        margin-top: 10px;
+        display: block;
+        border: 1px dashed #d1e0ff;
+      }
+
+      .modal-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      .modal-btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.3s;
+      }
+
+      .modal-btn.primary {
+        background: #4a7bd9;
+        color: white;
+      }
+
+      .modal-btn.primary:hover {
+        background: #1a2a6c;
+      }
+
+      .modal-btn.secondary {
+        background: #f5f7fa;
+        color: #1a2a6c;
+        border: 1px solid #d1e0ff;
+      }
+
+      .modal-btn.secondary:hover {
+        background: #eef7ff;
+      }
+
+      /* Custom Marker Styles */
+      .custom-marker {
+        background: white;
+        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        border: 2px solid white;
+        transform: translate(-50%, -50%);
+      }
+
+      .marker-icon {
+        color: white;
+        font-size: 14px;
+      }
+
+      .leaflet-popup-content-wrapper {
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+
+      .leaflet-popup-content {
+        margin: 12px;
+      }
+
+      .popup-content {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .popup-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1a2a6c;
+      }
+
+      .popup-description {
+        font-size: 0.9rem;
+        color: #555;
+      }
+
+      .popup-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 5px 0;
+      }
+
+      .popup-tag {
+        background: #4a7bd9;
+        color: white;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+      }
+
+      .popup-directions-btn {
+        background: #1a2a6c;
+        color: white;
+        border: none;
+        border-radius: 20px;
+        padding: 8px 12px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        text-decoration: none;
+        text-align: center;
+        margin-top: 5px;
+      }
+
+      .popup-directions-btn:hover {
+        background: #4a7bd9;
+      }
+
+      /* Map-positioned Add Location Controls */
+      .map-add-controls {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .add-instruction-text {
+        background: rgba(26, 42, 108, 0.95);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        box-shadow: 0 4px 15px rgba(26, 42, 108, 0.4);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        animation: pulseGlow 2s ease-in-out infinite;
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+      }
+
+      @keyframes pulseGlow {
+        0%,
+        100% {
+          box-shadow: 0 4px 15px rgba(26, 42, 108, 0.4);
+          transform: scale(1);
+        }
+        50% {
+          box-shadow: 0 6px 25px rgba(26, 42, 108, 0.6);
+          transform: scale(1.02);
+        }
+      }
+
+      .map-add-btn {
+        background: linear-gradient(135deg, #4a7bd9, #1a2a6c);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        padding: 12px 24px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(74, 123, 217, 0.4);
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        min-width: 160px;
+        justify-content: center;
+      }
+
+      .map-add-btn:hover {
+        background: linear-gradient(135deg, #1a2a6c, #4a7bd9);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(74, 123, 217, 0.6);
+      }
+
+      .map-add-btn.cancel-mode {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+      }
+
+      .map-add-btn.cancel-mode:hover {
+        background: linear-gradient(135deg, #c0392b, #a93226);
+        box-shadow: 0 6px 20px rgba(231, 76, 60, 0.6);
+      }
+
+      /* See More Section Styles */
+      .see-more-section {
+        margin-top: 20px;
+        border-top: 1px solid #e0e6ed;
+        padding-top: 15px;
+      }
+
+      .see-more-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        padding: 12px 16px;
+        border: 1px solid #e0e6ed;
+        border-radius: 8px;
+        background: #f8f9fa;
+        transition: all 0.3s ease;
+        user-select: none;
+      }
+
+      .see-more-toggle:hover {
+        background: #eef7ff;
+        border-color: #4a7bd9;
+      }
+
+      .see-more-text {
+        font-weight: 600;
+        color: #1a2a6c;
+        font-size: 0.95rem;
+      }
+
+      .see-more-icon {
+        color: #4a7bd9;
+        transition: transform 0.3s ease;
+      }
+
+      .see-more-toggle.expanded .see-more-icon {
+        transform: rotate(180deg);
+      }
+
+      .see-more-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.4s ease;
+        background: #fafbfc;
+        border: 1px solid #e0e6ed;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+      }
+
+      .see-more-content.expanded {
+        max-height: 3500px;
+        padding: 20px;
+      }
+
+      .form-section {
+        margin-bottom: 24px;
+      }
+
+      .form-section:last-child {
+        margin-bottom: 0;
+      }
+
+      .section-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1a2a6c;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #e0e6ed;
+      }
+
+      .section-title i {
+        color: #4a7bd9;
+        font-size: 0.9rem;
+      }
+
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .form-group label {
+        font-weight: 500;
+        color: #333;
+        font-size: 0.9rem;
+      }
+
+      .form-group input {
+        padding: 10px 12px;
+        border: 1px solid #d1e0ff;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        transition: border-color 0.3s ease;
+        background: white;
+      }
+
+      .form-group input:focus {
+        outline: none;
+        border-color: #4a7bd9;
+        box-shadow: 0 0 0 3px rgba(74, 123, 217, 0.1);
+      }
+
+      .amenities-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+      }
+
+      .amenity-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid #e0e6ed;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: white;
+        user-select: none;
+        position: relative;
+      }
+
+      .amenity-checkbox:hover {
+        background: #f8f9fa;
+        border-color: #4a7bd9;
+      }
+
+      .amenity-checkbox input[type="checkbox"] {
+        position: absolute;
+        opacity: 0;
+        cursor: pointer;
+      }
+
+      .checkmark {
+        width: 18px;
+        height: 18px;
+        border: 2px solid #d1e0ff;
+        border-radius: 4px;
+        position: relative;
+        transition: all 0.3s ease;
+        flex-shrink: 0;
+      }
+
+      .amenity-checkbox input:checked + .checkmark {
+        background: #4a7bd9;
+        border-color: #4a7bd9;
+      }
+
+      .amenity-checkbox input:checked + .checkmark::after {
+        content: "";
+        position: absolute;
+        left: 5px;
+        top: 2px;
+        width: 4px;
+        height: 8px;
+        border: solid white;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+      }
+
+      .amenity-checkbox i {
+        color: #4a7bd9;
+        font-size: 0.9rem;
+        width: 16px;
+        text-align: center;
+      }
+
+      .amenity-checkbox span:last-child {
+        font-size: 0.9rem;
+        color: #333;
+        font-weight: 500;
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 768px) {
+        .form-row {
+          grid-template-columns: 1fr;
+        }
+
+        .amenities-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Searching for places...</div>
+        <div class="loading-subtitle">Finding amazing locations near you</div>
+      </div>
+    </div>
+
+    <div class="container">
+      <!-- <header>
+        <h1><i class="fas fa-map-marked-alt"></i> Maps & Local Places</h1>
+        <p class="subtitle">Host Mode - Search and customize places to share</p>
+      </header> -->
+
+      <!-- Host Controls -->
+      <div class="controls">
+        <div class="search-container">
+          <input
+            type="text"
+            id="location-input"
+            placeholder="City/ Coordinates for Precise Search"
+            value="Paris"
+          />
+          <button id="search-btn"><i class="fas fa-search"></i> Search</button>
+        </div>
+
+        <div class="categories">
+          <div class="category-buttons" id="category-buttons">
+            <button class="category-btn active" data-category="all">
+              <i class="fas fa-layer-group"></i> All Places
+            </button>
+            <!-- Dynamic categories will be added here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Host Controls -->
+      <div class="host-controls">
+        <div class="selection-info">
+          <div class="toggle-container">
+            <span class="toggle-label">Select All</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="select-all-toggle" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <span id="selected-count">0 places selected</span>
+        </div>
+        <div class="host-buttons">
+          <button id="export-btn" class="host-btn primary">
+            <i class="fas fa-share-square"></i>
+            <span id="export-btn-text">Save to Welcome Guide</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="map-container">
+          <div id="map"></div>
+          <!-- Add Location Controls positioned over the map -->
+          <div class="map-add-controls">
+            <div
+              id="add-instruction"
+              class="add-instruction-text"
+              style="display: none"
+            >
+              <i class="fas fa-hand-pointer"></i> Click on the map to add
+              location
+            </div>
+            <button id="add-location-btn" class="map-add-btn">
+              <i class="fas fa-plus"></i> Add Custom Location
+            </button>
+          </div>
+        </div>
+
+        <div class="cards-section">
+          <div class="cards-header">
+            <div class="location-name">
+              <i class="fas fa-map-marker-alt"></i>
+              <span id="location-display">Paris</span>
+            </div>
+            <div class="results-count" id="results-count">
+              Displaying 0 places
+            </div>
+          </div>
+
+          <div class="cards-container" id="cards-container">
+            <div class="card">
+              <div class="card-image">
+                <div class="placeholder">
+                  <i class="fas fa-landmark"></i>
+                </div>
+              </div>
+              <div class="card-content">
+                <div class="card-header">
+                  <div class="card-icon" style="background: #4a7bd9">
+                    <i class="fas fa-info-circle"></i>
+                  </div>
+                  <h3>Places Explorer</h3>
+                </div>
+                <p>
+                  Enter a location to discover places within a 3-mile radius.
+                  You can also add custom locations by clicking "Add Location"
+                  and placing a pin on the map.
+                </p>
+                <div class="card-tags">
+                  <span class="tag" style="background: #4a7bd9"
+                    >Information</span
+                  >
+                </div>
+                <button class="directions-btn">
+                  <i class="fas fa-directions"></i> Get Directions
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal" id="edit-modal">
+      <div class="modal-content">
+        <span class="modal-close" id="close-modal">&times;</span>
+        <h2 class="modal-title"><i class="fas fa-edit"></i> Edit Place</h2>
+        <div class="form-group">
+          <label for="edit-name">Place Name</label>
+          <input type="text" id="edit-name" placeholder="Enter place name" />
+        </div>
+        <div class="form-group">
+          <label for="edit-description">Description</label>
+          <textarea
+            id="edit-description"
+            placeholder="Enter description"
+          ></textarea>
+        </div>
+        <div class="form-group">
+          <label for="edit-category">Category</label>
+          <select id="edit-category" class="form-control">
+            <!-- Options will be added by JavaScript -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="edit-image">Upload Image</label>
+          <input type="file" id="edit-image" accept="image/*" />
+          <div class="image-preview-container">
+            <img id="image-preview" class="image-preview" alt="Image preview" />
+          </div>
+        </div>
+
+        <!-- See More Section -->
+        <div class="see-more-section">
+          <div class="see-more-toggle" onclick="toggleSeeMore('edit')">
+            <span class="see-more-text">See More Options</span>
+            <i class="fas fa-chevron-down see-more-icon"></i>
+          </div>
+          <div class="see-more-content" id="edit-see-more">
+            <!-- Contact Information -->
+            <div class="form-section">
+              <h4 class="section-title">
+                <i class="fas fa-address-book"></i> Contact Information
+              </h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="edit-phone">Phone Number</label>
+                  <input
+                    type="tel"
+                    id="edit-phone"
+                    placeholder="+1 (555) 123-4567"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="edit-website">Website</label>
+                  <input
+                    type="url"
+                    id="edit-website"
+                    placeholder="https://example.com"
+                  />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="edit-email">Email</label>
+                  <input
+                    type="email"
+                    id="edit-email"
+                    placeholder="contact@example.com"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="edit-address">Address</label>
+                  <input
+                    type="text"
+                    id="edit-address"
+                    placeholder="123 Main St, City, State"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Business Information -->
+            <div class="form-section">
+              <h4 class="section-title">
+                <i class="fas fa-business-time"></i> Business Information
+              </h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="edit-hours">Opening Hours</label>
+                  <input
+                    type="text"
+                    id="edit-hours"
+                    placeholder="Mon-Fri 9:00-17:00"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="edit-cuisine">Cuisine Type</label>
+                  <input
+                    type="text"
+                    id="edit-cuisine"
+                    placeholder="Italian, Mexican, etc."
+                  />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="edit-brand">Brand/Chain</label>
+                <input
+                  type="text"
+                  id="edit-brand"
+                  placeholder="Starbucks, McDonald's, etc."
+                />
+              </div>
+            </div>
+
+            <!-- Amenities & Features -->
+            <div class="form-section">
+              <h4 class="section-title">
+                <i class="fas fa-check-circle"></i> Amenities & Features
+              </h4>
+              <div class="amenities-grid">
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="edit-wifi" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-wifi"></i> Free WiFi
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="edit-wheelchair" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-wheelchair"></i> Wheelchair Accessible
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="edit-parking" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-parking"></i> Parking Available
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="edit-outdoor" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-tree"></i> Outdoor Seating
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="edit-takeaway" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-shopping-bag"></i> Takeaway
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="edit-delivery" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-truck"></i> Delivery
+                </label>
+              </div>
+            </div>
+
+            <!-- Payment Methods -->
+            <div class="form-section">
+              <h4 class="section-title">
+                <i class="fas fa-credit-card"></i> Payment Methods
+              </h4>
+              <div class="amenities-grid">
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="edit-cash" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-money-bill"></i> Cash
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="edit-cards" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-credit-card"></i> Credit Cards
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="edit-contactless" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-mobile-alt"></i> Contactless
+                </label>
+              </div>
+            </div>
+
+            <!-- Dietary Options -->
+            <div class="form-section">
+              <h4 class="section-title">
+                <i class="fas fa-utensils"></i> Dietary Options
+              </h4>
+              <div class="amenities-grid">
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="edit-vegetarian" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-leaf"></i> Vegetarian
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="edit-vegan" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-seedling"></i> Vegan
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="edit-glutenfree" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-ban"></i> Gluten-Free
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="edit-halal" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-moon"></i> Halal
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-buttons">
+          <button class="modal-btn secondary" id="cancel-edit">Cancel</button>
+          <button class="modal-btn primary" id="save-edit">Save Changes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Place Modal -->
+    <div class="modal" id="add-modal">
+      <div class="modal-content">
+        <span class="modal-close" id="close-add-modal">&times;</span>
+        <h2 class="modal-title"><i class="fas fa-plus"></i> Add New Place</h2>
+        <div class="form-group">
+          <label for="add-name">Place Name</label>
+          <input type="text" id="add-name" placeholder="Enter place name" />
+        </div>
+        <div class="form-group">
+          <label for="add-description">Description</label>
+          <textarea
+            id="add-description"
+            placeholder="Enter description"
+          ></textarea>
+        </div>
+        <div class="form-group">
+          <label for="add-category">Category</label>
+          <select id="add-category" class="form-control">
+            <!-- Options will be added by JavaScript -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="add-image">Upload Image</label>
+          <input type="file" id="add-image" accept="image/*" />
+          <div class="image-preview-container">
+            <img
+              id="add-image-preview"
+              class="image-preview"
+              alt="Image preview"
+            />
+          </div>
+        </div>
+
+        <!-- See More Section -->
+        <div class="see-more-section">
+          <div class="see-more-toggle" onclick="toggleSeeMore('add')">
+            <span class="see-more-text">See More Options</span>
+            <i class="fas fa-chevron-down see-more-icon"></i>
+          </div>
+          <div class="see-more-content" id="add-see-more">
+            <!-- Contact Information -->
+            <div class="form-section">
+              <h4 class="section-title">
+                <i class="fas fa-address-book"></i> Contact Information
+              </h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="add-phone">Phone Number</label>
+                  <input
+                    type="tel"
+                    id="add-phone"
+                    placeholder="+1 (555) 123-4567"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="add-website">Website</label>
+                  <input
+                    type="url"
+                    id="add-website"
+                    placeholder="https://example.com"
+                  />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="add-email">Email</label>
+                  <input
+                    type="email"
+                    id="add-email"
+                    placeholder="contact@example.com"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="add-address">Address</label>
+                  <input
+                    type="text"
+                    id="add-address"
+                    placeholder="123 Main St, City, State"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Business Information -->
+            <div class="form-section">
+              <h4 class="section-title">
+                <i class="fas fa-business-time"></i> Business Information
+              </h4>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="add-hours">Opening Hours</label>
+                  <input
+                    type="text"
+                    id="add-hours"
+                    placeholder="Mon-Fri 9:00-17:00"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="add-cuisine">Cuisine Type</label>
+                  <input
+                    type="text"
+                    id="add-cuisine"
+                    placeholder="Italian, Mexican, etc."
+                  />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="add-brand">Brand/Chain</label>
+                <input
+                  type="text"
+                  id="add-brand"
+                  placeholder="Starbucks, McDonald's, etc."
+                />
+              </div>
+            </div>
+
+            <!-- Amenities & Features -->
+            <div class="form-section">
+              <h4 class="section-title">
+                <i class="fas fa-check-circle"></i> Amenities & Features
+              </h4>
+              <div class="amenities-grid">
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="add-wifi" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-wifi"></i> Free WiFi
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="add-wheelchair" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-wheelchair"></i> Wheelchair Accessible
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="add-parking" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-parking"></i> Parking Available
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="add-outdoor" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-tree"></i> Outdoor Seating
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="add-takeaway" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-shopping-bag"></i> Takeaway
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="add-delivery" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-truck"></i> Delivery
+                </label>
+              </div>
+            </div>
+
+            <!-- Payment Methods -->
+            <div class="form-section">
+              <h4 class="section-title">
+                <i class="fas fa-credit-card"></i> Payment Methods
+              </h4>
+              <div class="amenities-grid">
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="add-cash" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-money-bill"></i> Cash
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="add-cards" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-credit-card"></i> Credit Cards
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="add-contactless" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-mobile-alt"></i> Contactless
+                </label>
+              </div>
+            </div>
+
+            <!-- Dietary Options -->
+            <div class="form-section">
+              <h4 class="section-title">
+                <i class="fas fa-utensils"></i> Dietary Options
+              </h4>
+              <div class="amenities-grid">
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="add-vegetarian" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-leaf"></i> Vegetarian
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="add-vegan" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-seedling"></i> Vegan
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="add-glutenfree" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-ban"></i> Gluten-Free
+                </label>
+                <label class="amenity-checkbox">
+                  <input type="checkbox" id="add-halal" />
+                  <span class="checkmark"></span>
+                  <i class="fas fa-moon"></i> Halal
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-buttons">
+          <button class="modal-btn secondary" id="cancel-add">Cancel</button>
+          <button class="modal-btn primary" id="save-add">Add Place</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="integration.js"></script>
+  </body>
+</html>
