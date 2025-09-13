@@ -1,8 +1,8 @@
 // netlify/functions/save.js
-const { getStore } = require('@netlify/blobs');
-const { randomUUID } = require('crypto');
+import { getStore } from '@netlify/blobs';
 
-exports.handler = async (event) => {
+export const handler = async (event) => {
+  // Method guard
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -12,38 +12,49 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { id, data } = JSON.parse(event.body || '{}');
+    const body = JSON.parse(event.body || '{}');
+    const data = body?.data;
+
     if (!data) {
       return {
         statusCode: 400,
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ error: 'Missing `data` (guide JSON)' }),
+        body: JSON.stringify({ error: "Missing `data` (guide JSON)" }),
       };
     }
 
-    const guideId = id || randomUUID();
+    // Robust ID (works even if crypto.randomUUID is unavailable)
+    const makeId = () =>
+      (globalThis.crypto?.randomUUID?.() ??
+        `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`);
+
+    const id = String(body?.id || makeId());
+
+    // Write to Netlify Blobs "guides" store
     const store = getStore('guides');
 
     const payload = {
-      id: guideId,
+      id,
       status: 'active',
       data,
       updatedAt: new Date().toISOString(),
     };
 
-    await store.setJSON(guideId, payload);
+    await store.setJSON(id, payload);
 
     return {
       statusCode: 200,
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id: guideId }),
+      body: JSON.stringify({ ok: true, id }),
     };
   } catch (err) {
-    console.error(err);
     return {
       statusCode: 500,
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ error: 'Internal error' }),
+      body: JSON.stringify({
+        error: 'Internal error',
+        detail: String(err?.message || err),
+      }),
     };
   }
 };
