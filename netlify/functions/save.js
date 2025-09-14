@@ -10,7 +10,7 @@ export async function handler(event) {
 
     if (event.httpMethod === "POST") {
       const body = JSON.parse(event.body || "{}");
-      await store.setJSON("guide.json", body);
+      await store.set("guide.json", body, { type: "json" });
       return {
         statusCode: 200,
         body: JSON.stringify({ message: "Saved!", data: body }),
@@ -18,15 +18,21 @@ export async function handler(event) {
     }
 
     if (event.httpMethod === "GET") {
-      const latest = await store.getJSON("guide.json");
+      const latest = await store.get("guide.json", { type: "json" });
       return {
         statusCode: 200,
         body: JSON.stringify({ latest }),
       };
     }
 
-    return { statusCode: 405, body: JSON.stringify({ error: "Method Not Allowed" }) };
+    return {
+      statusCode: 405,
+      body: JSON.stringify({ error: "Method Not Allowed" }),
+    };
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message }),
+    };
   }
 }
