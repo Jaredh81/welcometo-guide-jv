@@ -25,5 +25,31 @@
 
     loadGuide();
   </script>
+  <script>
+  async function loadGuide() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get("id") || "host1"; // default to host1 if missing
+
+    try {
+      const res = await fetch(`/.netlify/functions/load?id=${id}`);
+      const json = await res.json();
+
+      if (json.latest) {
+        document.getElementById("hostName").textContent = json.latest.host.name;
+        document.getElementById("cityName").textContent = json.latest.property.city;
+      } else {
+        document.getElementById("hostName").textContent = "Not found";
+        document.getElementById("cityName").textContent = "Not found";
+      }
+    } catch (err) {
+      console.error(err);
+      document.getElementById("hostName").textContent = "Error";
+      document.getElementById("cityName").textContent = "Error";
+    }
+  }
+
+  loadGuide();
+</script>
+
 </body>
 </html>
