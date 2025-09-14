@@ -2082,5 +2082,57 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="integration.js"></script>
+    <script>
+  const FN = '/.netlify/functions/save';
+
+  async function apiSave(id, data) {
+    const r = await fetch(`${FN}?id=${encodeURIComponent(id)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return r.json();
+  }
+
+  async function apiLoad(id) {
+    const r = await fetch(`${FN}?id=${encodeURIComponent(id)}`);
+    return r.json();
+  }
+
+  function collectForm() {
+    return {
+      host: { name: document.getElementById('hostName')?.value || '' },
+      property: {
+        city: document.getElementById('city')?.value || '',
+        country: document.getElementById('country')?.value || '',
+      },
+    };
+  }
+
+  function fillForm(data = {}) {
+    if (data.host?.name) document.getElementById('hostName').value = data.host.name;
+    if (data.property?.city) document.getElementById('city').value = data.property.city;
+    if (data.property?.country) document.getElementById('country').value = data.property.country;
+  }
+
+  // Buttons
+  window.saveProgress = async function () {
+    const id = document.getElementById('hostId')?.value?.trim() || 'host1';
+    const data = collectForm();
+    const res = await apiSave(id, data);
+    console.log(res);
+    alert('Saved!');
+  };
+
+  window.loadProgress = async function () {
+    const id = document.getElementById('hostId')?.value?.trim() || 'host1';
+    const res = await apiLoad(id);
+    console.log(res);
+    if (res.latest) fillForm(res.latest);
+    else if (res.data) fillForm(res.data);
+    else alert('Nothing saved yet for this ID.');
+  };
+</script>
+
   </body>
 </html>
