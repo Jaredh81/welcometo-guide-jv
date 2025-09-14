@@ -17543,5 +17543,40 @@ Welcome home!
         window.parent.postMessage({type: 'handlerReady'}, '*');
       })();
     </script>
+    <script>
+(async () => {
+  const get = (obj, path) => path.split('.').reduce((o,k)=>o?.[k], obj);
+
+  const format = (val, el) => {
+    const f = el.dataset.format;
+    if (!f) return val;
+    if (f === 'mailto') return `mailto:${val}`;
+    if (f === 'tel') return `tel:${val.replace(/\s+/g,'')}`;
+    if (f === 'join') return Array.isArray(val) ? val.join(el.dataset.sep || ', ') : val;
+    if (f === 'bg') return `background-image:url('${val}')`;
+    return val;
+  };
+
+  const id = new URLSearchParams(location.search).get('id') || 'host1';
+  const res = await fetch(`/.netlify/functions/load?id=${encodeURIComponent(id)}`);
+  const json = await res.json();
+  const data = json.latest || {};
+
+  document.querySelectorAll('[data-bind]').forEach(el => {
+    const val = get(data, el.dataset.bind);
+    if (val == null) return;
+    const out = format(val, el);
+    const attr = el.dataset.attr;
+    if (attr) {
+      el.setAttribute(attr, out);
+    } else if (el.dataset.html != null) {
+      el.innerHTML = out;
+    } else {
+      el.textContent = out;
+    }
+  });
+})();
+</script>
+
   </body>
 </html>
