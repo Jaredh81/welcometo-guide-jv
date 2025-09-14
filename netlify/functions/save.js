@@ -1,26 +1,44 @@
-const { Blobs } = require('@netlify/blobs')
+const { createClient } = require('@netlify/blobs');
 
 exports.handler = async (event) => {
   try {
-    const store = new Blobs({
+    const client = createClient({
       siteID: process.env.NETLIFY_SITE_ID,
       token: process.env.NETLIFY_AUTH_TOKEN,
-      name: 'guides',
-    })
+    });
+
+    // use (or auto-create) a store named "guides"
+    const store = client.store('guides');
 
     if (event.httpMethod === 'POST') {
-      const body = JSON.parse(event.body || '{}')
-      await store.setJSON('guide.json', body)
-      return { statusCode: 200, body: JSON.stringify({ saved: body }) }
+      const body = JSON.parse(event.body || '{}');
+      await store.setJSON('guide.json', body);
+      return {
+        statusCode: 200,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ saved: body }),
+      };
     }
 
     if (event.httpMethod === 'GET') {
-      const latest = await store.getJSON('guide.json')
-      return { statusCode: 200, body: JSON.stringify({ latest }) }
+      const latest = await store.getJSON('guide.json');
+      return {
+        statusCode: 200,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ latest }),
+      };
     }
 
-    return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) }
+    return {
+      statusCode: 405,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ error: 'Method Not Allowed' }),
+    };
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) }
+    return {
+      statusCode: 500,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ error: err.message }),
+    };
   }
-}
+};
