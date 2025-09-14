@@ -1,37 +1,31 @@
 import { getStore } from "@netlify/blobs";
 
-export const handler = async (event) => {
-  try {
-    if (event.httpMethod !== "POST") {
-      return { statusCode: 405, body: "Method Not Allowed" };
-    }
+export async function handler(event) {
+  const store = getStore({
+    name: "guides",
+    siteID: "e7e9d9c6-beb2-46a2-9d85-a094088467e6", // your site ID
+    token: "nfp_xxxxxxx", // your personal auth token
+  });
 
-    const guideId = event.queryStringParameters.id;
-    if (!guideId) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Missing id" }) };
-    }
+  if (event.httpMethod === "POST") {
+    const id = event.queryStringParameters.id || "default";
+    const body = JSON.parse(event.body);
 
-    const body = JSON.parse(event.body || "{}");
-    if (!body) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Missing body" }) };
-    }
-
-    const store = getStore("guides");
-    await store.setJSON(guideId, { latest: body });
-
+    await store.setJSON(id, body);
     return {
       statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: "Saved!",
-        id: guideId,
-        data: body,
-      }),
-    };
-  } catch (err) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message }),
+      body: JSON.stringify({ message: "Saved!", id, data: body }),
     };
   }
-};
+
+  if (event.httpMethod === "GET") {
+    const id = event.queryStringParameters.id || "default";
+    const latest = await store.getJSON(id);
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ id, latest }),
+    };
+  }
+
+  return { statusCode: 405, body: "Method not allowed" };
+}
