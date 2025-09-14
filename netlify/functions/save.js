@@ -1,14 +1,27 @@
-const { createClient } = require('@netlify/blobs');
-
+// CommonJS-compatible function using a dynamic import
 exports.handler = async (event) => {
   try {
-    const client = createClient({
-      siteID: process.env.NETLIFY_SITE_ID,
-      token: process.env.NETLIFY_AUTH_TOKEN,
-    });
+    const blobs = await import('@netlify/blobs');
 
-    // use (or auto-create) a store named "guides"
-    const store = client.store('guides');
+    const siteID = process.env.NETLIFY_SITE_ID;
+    const token  = process.env.NETLIFY_AUTH_TOKEN;
+
+    // pick the right API shape regardless of installed version
+    let store;
+    if (typeof blobs.createClient === 'function') {
+      // Newer SDK
+      const client = blobs.createClient({ siteID, token });
+      store = client.store('guides');
+    } else if (typeof blobs.getStore === 'function') {
+      // Some SDKs expose getStore directly
+      store = blobs.getStore('guides', { siteID, token });
+    } else if (blobs.Blobs) {
+      // Older SDKs exposed a class
+      const client = new blobs.Blobs({ siteID, token });
+      store = client.store('guides');
+    } else {
+      throw new Error('No compatible @netlify/blobs API found');
+    }
 
     if (event.httpMethod === 'POST') {
       const body = JSON.parse(event.body || '{}');
@@ -16,7 +29,7 @@ exports.handler = async (event) => {
       return {
         statusCode: 200,
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ saved: body }),
+        body: JSON.stringify({ saved: true }),
       };
     }
 
