@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Edit Guide</title>
+</head>
+<body>
+  <h1>Edit Guide</h1>
+
+  <label>Guide ID: <input id="guideId" value="host1" /></label><br>
+  <label>Host Name: <input id="hostName" value="JV" /></label><br>
+  <label>City: <input id="city" value="Jozi" /></label><br>
+  <button onclick="saveGuide()">Save Guide</button>
+  <button onclick="loadGuide()">Load Guide</button>
+
+  <pre id="output"></pre>
+
+  <script>
+    const API_SAVE = "/.netlify/functions/save";
+    const API_LOAD = "/.netlify/functions/load";
+
+    async function saveGuide() {
+      const id = document.getElementById("guideId").value;
+      const data = {
+        host: { name: document.getElementById("hostName").value },
+        property: { city: document.getElementById("city").value },
+      };
+
+      const res = await fetch(`${API_SAVE}?id=${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json();
+      document.getElementById("output").textContent = JSON.stringify(json, null, 2);
+    }
+
+    async function loadGuide() {
+      const id = document.getElementById("guideId").value;
+      const res = await fetch(`${API_LOAD}?id=${id}`);
+      const json = await res.json();
+      document.getElementById("output").textContent = JSON.stringify(json, null, 2);
+    }
+  </script>
+</body>
+</html>
