@@ -1,53 +1,37 @@
-// netlify/functions/save.js
-exports.handler = async (event) => {
-  const blobs = await import('@netlify/blobs');
-  const siteID = process.env.NETLIFY_SITE_ID;
-  const token  = process.env.NETLIFY_AUTH_TOKEN;
+import { getStore } from "@netlify/blobs";
 
-  const store =
-    typeof blobs.getStore === 'function'
-      ? blobs.getStore({ name: 'guides', siteID, token })
-      : blobs.createClient
-      ? blobs.createClient({ siteID, token }).store('guides')
-      : new blobs.Blobs({ siteID, token }).store('guides');
-
-  // pick ID from query, fallback to "default"
-  const id = (event.queryStringParameters && event.queryStringParameters.id) || "default";
-  const key = `guide-${id}.json`;
-
+export const handler = async (event) => {
   try {
-    if (event.httpMethod === 'POST') {
-      const body = JSON.parse(event.body || '{}');
-      await store.set(key, JSON.stringify(body), { type: 'text', contentType: 'application/json' });
-      return json(200, { message: 'Saved!', id, data: body });
+    if (event.httpMethod !== "POST") {
+      return { statusCode: 405, body: "Method Not Allowed" };
     }
 
-    if (event.httpMethod === 'GET') {
-      const text = await store.get(key, { type: 'text' }).catch(() => null);
-      if (!text) return json(200, { id, latest: null });
-      try {
-        return json(200, { id, latest: JSON.parse(text) });
-      } catch {
-        return json(200, { id, latest_raw: text });
-      }
+    const guideId = event.queryStringParameters.id;
+    if (!guideId) {
+      return { statusCode: 400, body: JSON.stringify({ error: "Missing id" }) };
     }
 
-    if (event.httpMethod === 'DELETE') {
-      if (typeof store.delete === 'function') await store.delete(key).catch(() => {});
-      else await store.set(key, '', { type: 'text' });
-      return json(200, { id, cleared: true });
+    const body = JSON.parse(event.body || "{}");
+    if (!body) {
+      return { statusCode: 400, body: JSON.stringify({ error: "Missing body" }) };
     }
 
-    return json(405, { error: 'Method Not Allowed' });
+    const store = getStore("guides");
+    await store.setJSON(guideId, { latest: body });
+
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "Saved!",
+        id: guideId,
+        data: body,
+      }),
+    };
   } catch (err) {
-    return json(500, { error: String(err?.message || err) });
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message }),
+    };
   }
 };
-
-function json(code, obj) {
-  return {
-    statusCode: code,
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(obj),
-  };
-}
