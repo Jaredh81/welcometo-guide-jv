@@ -1,26 +1,8 @@
-# Make /admin load its index.html (no 404s on refresh)
-[[redirects]]
-from = "/admin"
-to = "/admin/index.html"
-status = 200
-
-# SPA fallback so deep links like /welcome or /?preview=1 work
-[[redirects]]
-from = "/*"
-to = "/index.html"
-status = 200
-
-# (Optional but helpful) – avoid stale JSON in preview
-[[headers]]
-for = "/data/guide.json"
-[headers.values]
-Cache-Control = "no-store, max-age=0"
-
 [build]
-  functions = "netlify/functions"   # where your save.js lives
+  command = ""
+  publish = "."
 
 [functions]
+  directory = "netlify/functions"
   node_bundler = "esbuild"
-
-[build.environment]
-  NODE_VERSION = "20"
+  external_node_modules = ["@netlify/blobs"]

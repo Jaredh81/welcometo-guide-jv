@@ -1,41 +1,28 @@
-// CommonJS – force options into getStore and support both siteID/siteId
-const { getStore } = require("@netlify/blobs");
+// netlify/functions/load.js
+import { getStore } from "@netlify/blobs";
 
-exports.handler = async (event) => {
+export async function handler(event) {
+  // Only allow GET
+  if (event.httpMethod !== "GET") {
+    return { statusCode: 405, body: JSON.stringify({ error: "Method Not Allowed" }) };
+  }
+
+  const id = (event.queryStringParameters?.id || "host1").trim();
+
   try {
-    const id = event.queryStringParameters?.id || "host1";
-
-    const siteID = process.env.NETLIFY_SITE_ID;
-    const token  = process.env.NETLIFY_AUTH_TOKEN;
-
-    let store;
-    try {
-      store = getStore("guides", { siteID, token });
-    } catch (e1) {
-      store = getStore("guides", { siteId: siteID, token });
-    }
-
-    const latest = await store.getJSON(id); // null if not found
-
-    // Optional: debug flags
-    if (event.queryStringParameters?.debug === "1") {
-      return {
-        statusCode: 200,
-        headers: { "content-type": "application/json", "cache-control": "no-store" },
-        body: JSON.stringify({ id, hasSiteID: !!siteID, hasToken: !!token, latest: latest || null })
-      };
-    }
+    const store = getStore("guides");
+    const data = await store.getJSON(id); // null if not found
 
     return {
-      statusCode: latest ? 200 : 404,
-      headers: { "content-type": "application/json", "cache-control": "no-store" },
-      body: JSON.stringify({ id, latest: latest || null })
+      statusCode: 200,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id, latest: data }),
     };
   } catch (err) {
     return {
       statusCode: 500,
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ errorType: err.name, errorMessage: err.message })
+      body: JSON.stringify({ error: err.name || "Error", detail: err.message }),
     };
   }
-};
+}

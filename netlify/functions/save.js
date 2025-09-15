@@ -1,47 +1,36 @@
-// CommonJS – force options into getStore and support both siteID/siteId
-const { getStore } = require("@netlify/blobs");
+// netlify/functions/save.js
+import { getStore } from "@netlify/blobs";
 
-exports.handler = async (event) => {
+export async function handler(event) {
+  // Only allow POST
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, body: JSON.stringify({ error: "Method Not Allowed" }) };
+  }
+
+  const id = (event.queryStringParameters?.id || "host1").trim();
+
+  let data;
   try {
-    if (event.httpMethod !== "POST") {
-      return { statusCode: 405, body: "Method Not Allowed" };
-    }
+    data = JSON.parse(event.body || "{}");
+  } catch {
+    return { statusCode: 400, body: JSON.stringify({ error: "Bad JSON" }) };
+  }
 
-    const id = event.queryStringParameters?.id || "host1";
-    const data = JSON.parse(event.body || "{}");
-
-    const siteID = process.env.NETLIFY_SITE_ID;
-    const token  = process.env.NETLIFY_AUTH_TOKEN;
-
-    let store;
-    try {
-      store = getStore("guides", { siteID, token });
-    } catch (e1) {
-      // some SDK builds expect siteId (lowercase d)
-      store = getStore("guides", { siteId: siteID, token });
-    }
-
+  try {
+    // Uses Netlify’s native env (no token/site id needed)
+    const store = getStore("guides");
     await store.setJSON(id, data);
-
-    // Optional: lightweight debug flags (no secrets)
-    if (event.queryStringParameters?.debug === "1") {
-      return {
-        statusCode: 200,
-        headers: { "content-type": "application/json", "cache-control": "no-store" },
-        body: JSON.stringify({ message: "Saved!", id, hasSiteID: !!siteID, hasToken: !!token })
-      };
-    }
 
     return {
       statusCode: 200,
-      headers: { "content-type": "application/json", "cache-control": "no-store" },
-      body: JSON.stringify({ message: "Saved!", id })
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ message: "Saved!", id, data }),
     };
   } catch (err) {
     return {
       statusCode: 500,
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ errorType: err.name, errorMessage: err.message })
+      body: JSON.stringify({ error: err.name || "Error", detail: err.message }),
     };
   }
-};
+}
