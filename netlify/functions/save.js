@@ -1,35 +1,33 @@
-// netlify/functions/save.js (CommonJS)
-const { createClient } = require("@netlify/blobs");
+// CommonJS version for @netlify/blobs v10+
+const { getStore } = require("@netlify/blobs");
 
 exports.handler = async (event) => {
   try {
     if (event.httpMethod !== "POST") {
-      return { statusCode: 405, body: JSON.stringify({ error: "Method Not Allowed" }) };
+      return { statusCode: 405, body: "Method Not Allowed" };
     }
 
-    const idFromQuery = (event.queryStringParameters && event.queryStringParameters.id) || "";
-    const body = event.body ? JSON.parse(event.body) : {};
-    const id = idFromQuery || body.id || "host1";
-    const data = body.data || body;
+    const id = event.queryStringParameters?.id || "host1";
+    const data = JSON.parse(event.body || "{}");
 
-    const client = createClient({
+    // Pass env vars explicitly (works in all contexts)
+    const store = getStore("guides", {
       siteID: process.env.NETLIFY_SITE_ID,
       token: process.env.NETLIFY_AUTH_TOKEN,
     });
 
-    const store = client.store("guides");
     await store.setJSON(id, data);
 
     return {
       statusCode: 200,
+      headers: { "content-type": "application/json", "cache-control": "no-store" },
       body: JSON.stringify({ message: "Saved!", id, data }),
-      headers: { "content-type": "application/json" },
     };
   } catch (err) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ errorType: err.name, errorMessage: err.message, stack: err.stack }),
       headers: { "content-type": "application/json" },
+      body: JSON.stringify({ errorType: err.name, errorMessage: err.message }),
     };
   }
 };
