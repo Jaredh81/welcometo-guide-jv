@@ -1,23 +1,20 @@
-import { createClient } from "@netlify/blobs";
+const { getStore } = require("@netlify/blobs");
 
-const client = createClient();
-
-export async function handler(event) {
-  try {
-    const { id } = event.queryStringParameters;
-    const data = JSON.parse(event.body);
-
-    const store = client.store("guides");
-    await store.setJSON(id, data);
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ message: "Saved!", id })
-    };
-  } catch (err) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message })
-    };
+exports.handler = async (event) => {
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, body: "Method Not Allowed" };
   }
-}
+
+  const id =
+    (event.queryStringParameters && event.queryStringParameters.id) || "host1";
+  const data = JSON.parse(event.body || "{}");
+
+  const store = getStore("guides"); // uses Netlify env internally; no token in code
+  await store.setJSON(id, data);
+
+  return {
+    statusCode: 200,
+    headers: { "content-type": "application/json", "cache-control": "no-store" },
+    body: JSON.stringify({ message: "Saved!", id, data }),
+  };
+};
