@@ -1,23 +1,24 @@
 {
   "name": "welcome-guide-jv",
   "version": "1.0.0",
-  "description": "",
+  "description": "Digital Welcome Guide",
   "main": "index.js",
+  "type": "commonjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "netlify dev",
+    "build": "echo 'No build step defined'"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Jaredh81/welcometo-guide-jv.git"
   },
   "keywords": [],
-  "author": "",
+  "author": "Jared Hurwitz-Joseph",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/Jaredh81/welcometo-guide-jv/issues"
   },
   "homepage": "https://github.com/Jaredh81/welcometo-guide-jv#readme",
-  "type": "commonjs",
   "dependencies": {
     "@netlify/blobs": "^10.0.10"
   }
