@@ -1,23 +1,14 @@
 const { getStore } = require("@netlify/blobs");
 
 exports.handler = async (event) => {
-  const id =
-    (event.queryStringParameters && event.queryStringParameters.id) || "host1";
+  const id = event.queryStringParameters?.id || "host1";
 
-  const store = getStore("guides"); // no manual token/siteID passed
-  const latest = await store.getJSON(id);
-
-  if (!latest) {
-    return {
-      statusCode: 404,
-      headers: { "content-type": "application/json", "cache-control": "no-store" },
-      body: JSON.stringify({ id, latest: null }),
-    };
-  }
+  const store = getStore("guides");        // uses your env automatically
+  const latest = await store.getJSON(id);  // returns null if not found
 
   return {
-    statusCode: 200,
+    statusCode: latest ? 200 : 404,
     headers: { "content-type": "application/json", "cache-control": "no-store" },
-    body: JSON.stringify({ id, latest }),
+    body: JSON.stringify({ id, latest: latest || null }),
   };
 };
