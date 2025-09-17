@@ -1,28 +1,26 @@
-// netlify/functions/load.js
-import { getStore } from "@netlify/blobs";
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 export async function handler(event) {
-  // Only allow GET
-  if (event.httpMethod !== "GET") {
-    return { statusCode: 405, body: JSON.stringify({ error: "Method Not Allowed" }) };
-  }
-
-  const id = (event.queryStringParameters?.id || "host1").trim();
-
   try {
-    const store = getStore("guides");
-    const data = await store.getJSON(id); // null if not found
+    const id = event.queryStringParameters && event.queryStringParameters.id;
+    if (!id) return { statusCode: 400, body: JSON.stringify({ error: 'Missing id' }) };
+
+    const { data, error } = await supabase
+      .from('guides')
+      .select('data, updated_at')
+      .eq('id', id)
+      .single();
+
+    if (error) return { statusCode: 404, body: JSON.stringify({ error: 'Not found' }) };
 
     return {
       statusCode: 200,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id, latest: data }),
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+      body: JSON.stringify(data) // { data: {...}, updated_at: ... }
     };
   } catch (err) {
-    return {
-      statusCode: 500,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ error: err.name || "Error", detail: err.message }),
-    };
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 }

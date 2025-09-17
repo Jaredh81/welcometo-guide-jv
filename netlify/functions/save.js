@@ -1,36 +1,30 @@
-// netlify/functions/save.js
-import { getStore } from "@netlify/blobs";
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE);
 
 export async function handler(event) {
-  // Only allow POST
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: JSON.stringify({ error: "Method Not Allowed" }) };
-  }
-
-  const id = (event.queryStringParameters?.id || "host1").trim();
-
-  let data;
   try {
-    data = JSON.parse(event.body || "{}");
-  } catch {
-    return { statusCode: 400, body: JSON.stringify({ error: "Bad JSON" }) };
-  }
+    if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
 
-  try {
-    // Uses Netlify’s native env (no token/site id needed)
-    const store = getStore("guides");
-    await store.setJSON(id, data);
+    const body = event.body ? JSON.parse(event.body) : {};
+    // accept id from query OR body
+    const id = (event.queryStringParameters && event.queryStringParameters.id) || body.id;
+    const data = body.data ?? body; // allow {data:{...}} or raw {...}
+
+    if (!id || !data) return { statusCode: 400, body: JSON.stringify({ error: 'Missing id or data' }) };
+
+    const { error } = await supabase
+      .from('guides')
+      .upsert({ id, data, updated_at: new Date().toISOString() });
+
+    if (error) throw error;
 
     return {
       statusCode: 200,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ message: "Saved!", id, data }),
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+      body: JSON.stringify({ ok: true, id })
     };
   } catch (err) {
-    return {
-      statusCode: 500,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ error: err.name || "Error", detail: err.message }),
-    };
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 }
